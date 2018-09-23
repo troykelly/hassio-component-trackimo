@@ -8,7 +8,7 @@
                 eg "/config/custom_components/sensor"
 """
 
-REQUIREMENTS = ['trackimo==0.0.6']
+REQUIREMENTS = ['trackimo==0.0.10']
 DEPENDENCIES = ['mqtt']
 
 from datetime import timedelta
@@ -18,7 +18,8 @@ import json
 import urllib
 import requests
 import asyncio
-import trackimo
+import time
+import re
 
 import voluptuous as vol
 import homeassistant.components.mqtt as mqtt
@@ -141,6 +142,7 @@ class TrackimoSensorData(object):
 
     def __init__(self, username, password, mqtt_topic, hass):
         """Initialize the data object."""
+        from trackimo_lib import Trackimo
         self.hass = hass
         self.value = None
         self.mqtt_topic = mqtt_topic
@@ -154,10 +156,11 @@ class TrackimoSensorData(object):
             }
         }
         _LOGGER.warning("Connecting to trackimo")
-        self._trackimo = Trackimo(self._config, hass.loop)
+        self._trackimo = Trackimo(self._config, loop=hass.loop, logger=_LOGGER)
         self._trackimo.addListener(self.locationUpdates)
         self._trackimo.connect()
         _LOGGER.warning("Connected to trackimo")
+        _LOGGER.warning("Trackimo token: %s" % self._trackimo._token)
         # try:
         #     self._trackimo.monitor()
         # except Exception as e:
@@ -165,12 +168,19 @@ class TrackimoSensorData(object):
         #     self.value = CONST_STATE_ERROR
 
     @asyncio.coroutine
-    def locationUpdates(locations=None, ts=None):
-        _LOGGER.warning("Have trackimo location data: %s" % json.dumps(locations))
-        self.value = CONST_STATE_RUNNING
+    def locationUpdates(self, locations=None, ts=None):
+        _LOGGER.warning("Have trackimo location data: %s" %
+                        json.dumps(locations))
+        alphaonly = re.compile('[\W_]+', re.UNICODE)
         for deviceId in locations:
             device = locations[deviceId]
             mqttPacket = OwntracksMQTT()
+            topic = 'owntracks/'
+            if 'name' in device:
+                topic += alphaonly.sub('', device['name'].lower())
+            else:
+                topic += deviceId
+            topic += '/trackimo'
             mqttPacket.conn = 'm'
             if 'lat' in device:
                 mqttPacket.lat = device['lat']
@@ -187,16 +197,17 @@ class TrackimoSensorData(object):
             if 'altitude' in device:
                 mqttPacket.alt = device['altitude']
             _LOGGER.warning(mqttPacket.json())
-            #self.save_payload_to_mqtt(str(topic), str(msgPayload))
-        self.value = CONST_STATE_SLEEPING
+            self.save_payload_to_mqtt(topic, mqttPacket.json())
 
     def update(self):
         _LOGGER.warning("Getting location updates from trackimo")
+        self.value = CONST_STATE_RUNNING
         try:
             self._trackimo.updateLocations()
         except Exception as e:
-            _LOGGER.error("error: %s", e)
+            _LOGGER.error("error: %s" % e)
             self.value = CONST_STATE_ERROR
+        self.value = CONST_STATE_SLEEPING
 
     def save_payload_to_mqtt(self, topic, payload):
 
@@ -206,5 +217,5 @@ class TrackimoSensorData(object):
             _LOGGER.warning("payload: %s", payload)
             mqtt.publish(self.hass, topic, payload,
                          self.mqtt_qos, self.mqtt_retain)
-        except:
-            _LOGGER.error("Error saving Trackimo data to mqtt.")
+        except Exception as e:
+            _LOGGER.error("Unable to send MQTT: %s" % e)

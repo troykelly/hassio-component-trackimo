@@ -5,7 +5,7 @@
                 data at a specified interval for retransmission via MQTT
 
 @ Notes:        This file needs to be within your custom_components folder.
-                eg "/config/custom_components/sensor"
+                eg "/config/custom_components/trackimo"
 """
 
 from datetime import timedelta

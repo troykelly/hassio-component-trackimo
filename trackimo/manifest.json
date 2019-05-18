@@ -1,0 +1,8 @@
+{
+  "domain": "trackimo",
+  "name": "Trackimo to MQTT gateway",
+  "documentation": "https://github.com/troykelly/hassio-component-trackimo/wiki",
+  "dependencies": ["mqtt"],
+  "codeowners": ["troykelly"],
+  "requirements": ["trackimo==0.0.11"]
+}

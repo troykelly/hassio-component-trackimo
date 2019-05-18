@@ -1,15 +1,12 @@
 """
 @ Author      : Troy Kelly
-@ Date        : 23 Sept 2018
+@ Date        : 19 May 2019
 @ Description : Trackimo Sensor - Queries the Trackimo API and retrieves
                 data at a specified interval for retransmission via MQTT
 
 @ Notes:        This file needs to be within your custom_components folder.
                 eg "/config/custom_components/sensor"
 """
-
-REQUIREMENTS = ['trackimo==0.0.11']
-DEPENDENCIES = ['mqtt']
 
 from datetime import timedelta
 import logging
